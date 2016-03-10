@@ -8,32 +8,56 @@
 # Author: M. Emery Goss, March 2016
 
 
+import threading
 import wave
+
+try:
+    from PyQt4 import QtCore
+except Exception:
+    from PyQt5 import QtCore
 
 import numpy
 import pyaudio
 import scipy.signal
 
-from psychopy.gui.qtgui import Qt
-
+from psychopy import core, logging
+from psychopy.constants import NOT_STARTED, STARTED, FINISHED
 
 pa = pyaudio.PyAudio()
+paComplete = pyaudio.paComplete
+paAbort = pyaudio.paAbort
 
 
-class AsyncMicrophone(Qt.QObject):
+class Observable(object):
+    def __init__(self):
+        self._funcs = []
+
+    def register(self, func):
+        self._funcs.append(func)
+
+    def __call__(self, *args, **kwargs):
+        for func in self._funcs:
+            func(*args, **kwargs)
+
+
+class SoundCaptureException(Exception):
+    pass
+
+
+class AsyncMicrophone(QtCore.QObject):
     """Capture sound from the default sound input and forward it to any
-        connected listeners.
+    connected listeners.
 
-        Multiple simultaneous recordings is untested, but this class is designed
-        to be able to forward the data to multiple listeners. Currently, this is
-        done via PyQt's signals-and-slots mechanism.
+    Multiple simultaneous recordings is untested, but this class is designed to
+    be able to forward the data to multiple listeners. Currently, this is done
+    via PyQt's signals-and-slots mechanism.
     """
     # def __init__(self, name='asyn-mic', channels=1, sample_rate=44200,
     #              buffer_duration=0.010):
     def __init__(self, channels=1, sample_rate=44200, buffer_duration=0.010):
         """
         """
-        super().__init__()
+        super(AsyncMicrophone, self).__init__()
 
         # self.name = name
         self.format = pyaudio.paInt16
@@ -43,6 +67,31 @@ class AsyncMicrophone(Qt.QObject):
         self.sample_freq = 1.0 / sample_rate
         self.buffer_duration = buffer_duration
         self.buffer_size = int(sample_rate * buffer_duration)
+        self._audio_stream = None
+
+        self.status = NOT_STARTED
+
+        self.buffer_ready = Observable()
+        self.buffer_ready.register(lambda x: self.buffer_ready_signal.emit(x))
+
+    buffer_ready_signal = QtCore.pyqtSignal(numpy.ndarray)
+
+    def _capture_buffer(self, in_data, frame_count, time_info, status):
+        if self.status is STARTED:
+            audio_data = numpy.fromstring(in_data, dtype = numpy.int16)
+            self.buffer_ready(audio_data)
+            return (None, pyaudio.paContinue)
+
+        elif self.status is FINISHED:
+            return (None, paComplete)
+
+        else:
+            return (None, paAbort)
+
+    def open(self, duration = None):
+        if self._audio_stream:
+            raise SoundCaptureException('each AsyncMicrophone can only have '
+                'one open audio stream')
 
         self._audio_stream = pa.open(
             format = self.format,
@@ -53,20 +102,21 @@ class AsyncMicrophone(Qt.QObject):
             stream_callback = self._capture_buffer
         )
 
-    buffer_ready = Qt.pyqtSignal(numpy.ndarray)
+        self.status = STARTED
 
-    def _capture_buffer(self, in_data, frame_count, time_info, status):
-        audio_data = numpy.fromstring(in_data, dtype = numpy.int16)
-        self.buffer_ready.emit(audio_data)
-        return (None, pyaudio.paContinue)
+        if duration is not None:
+            threading.Timer(duration, self.close).start()
 
     def close(self):
-        self._audio_stream.close()
+        if self.status is STARTED:
+            self._audio_stream.close()
+
+        self.status = FINISHED
 
 
-class FFTPeak(Qt.QObject):
+class FFTPeak(QtCore.QObject):
     """Listen to an AsyncMicrophone and do a FFT on a moving window to find the
-        peak within a specified range.
+    peak within a specified range.
     """
 
     def __init__(self, async_mic, scanning_range, buffer_count=10):
@@ -87,8 +137,10 @@ class FFTPeak(Qt.QObject):
 
         self._f0 = None
 
+        self.status = NOT_STARTED  # for Builder component
+
     # for asyncronous access (as a reaction)
-    f0_ready = Qt.pyqtSignal(float)
+    f0_ready = QtCore.pyqtSignal(float)
 
     # for syncronous access
     @property
@@ -99,8 +151,8 @@ class FFTPeak(Qt.QObject):
         self._f0 = value
         self.f0_ready.emit(value)
 
-    @Qt.pyqtSlot(numpy.ndarray)
-    def update(self, data):
+    @QtCore.pyqtSlot(numpy.ndarray)
+    def _update(self, data):
         self._data.append(data)
 
         while len(self._data) > self._buffer_count:
@@ -131,31 +183,37 @@ class FFTPeak(Qt.QObject):
                 self._update_f0(max_amp_freq)
 
 
-class WaveRecorder(Qt.QObject):
+class WaveRecorder(QtCore.QObject):
     def __init__(self, async_mic):
-        super().__init__()
+        super(WaveRecorder, self).__init__()
 
-        self._recording = False
         self._mic = async_mic
+        self.status = NOT_STARTED
 
-        self._mic.buffer_ready.connect(self._add_data)
+        self._mic.buffer_ready.register(self._add_data)
 
-    @Qt.pyqtSlot(str)
     def begin(self, file_name):
-        if not self._recording:
-            self._wave_file = wave.open(file_name + '.wav', mode = 'wb')
+        if self.status is not STARTED:
+            # use time for unique file name
+            time = core.getTime()
+            file_on_set = time - int(time) + core.getAbsTime()
+            file_name = "{}-{:.3f}.wav".format(file_name, file_on_set)
+
+            self._wave_file = wave.open(file_name, mode = 'wb')
             self._wave_file.setnchannels(self._mic.channels)
             self._wave_file.setsampwidth(self._mic.sample_size)
             self._wave_file.setframerate(self._mic.sample_rate)
-            self._recording = True
+            self.status = STARTED
 
-    @Qt.pyqtSlot()
     def close(self):
-        if self._recording:
+        if self.status is STARTED:
             self._wave_file.close()
-            self._recording = False
 
-    @Qt.pyqtSlot(numpy.ndarray)
-    def add_data(self, data):
-        if self._recording:
+        self.status = FINISHED
+
+    def close_after_duration(self, duration):
+        threading.Timer(duration, self.close).start()
+
+    def _add_data(self, data):
+        if self.status is STARTED:
             self._wave_file.writeframes(data)
