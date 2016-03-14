@@ -12,6 +12,7 @@ from __future__ import absolute_import, print_function, division
 
 import os
 import copy
+from functools import partial
 import numpy
 import re
 import wx
@@ -651,7 +652,8 @@ class _BaseParamsDlg(wx.Dialog):
             #    ctrls.valueCtrl)
             ctrls.valueCtrl.Bind(wx.EVT_KEY_UP, self.doValidate)
         elif fieldName in ('color', 'fillColor', 'lineColor'):
-            ctrls.valueCtrl.Bind(wx.EVT_RIGHT_DOWN, self.launchColorPicker)
+            ctrls.valueCtrl.Bind(wx.EVT_RIGHT_DOWN, partial(
+                self.launchColorPicker, fieldName=fieldName))
         elif valType == 'extendedCode':
             sizer.AddGrowableRow(currRow)  # doesn't seem to work though
             ctrls.valueCtrl.Bind(wx.EVT_KEY_DOWN, self.onTextEventCode)
@@ -681,15 +683,15 @@ class _BaseParamsDlg(wx.Dialog):
         #            WriteText(dataObject.GetText())
         #    wx.TheClipboard.Close()
 
-    def launchColorPicker(self, event):
+    def launchColorPicker(self, event, fieldName='color'):
         # bring up a colorPicker
         rgb = self.app.colorPicker(None)  # str, remapped to -1..+1
-        self.paramCtrls['color'].valueCtrl.SetFocus()
-        self.paramCtrls['color'].valueCtrl.Clear()
-        self.paramCtrls['color'].valueCtrl.WriteText(
+        self.paramCtrls[fieldName].valueCtrl.SetFocus()
+        self.paramCtrls[fieldName].valueCtrl.Clear()
+        self.paramCtrls[fieldName].valueCtrl.WriteText(
             '$' + rgb)  # $ flag as code
-        ii = self.paramCtrls['colorSpace'].valueCtrl.FindString('rgb')
-        self.paramCtrls['colorSpace'].valueCtrl.SetSelection(ii)
+        ii = self.paramCtrls[fieldName + 'Space'].valueCtrl.FindString('rgb')
+        self.paramCtrls[fieldName + 'Space'].valueCtrl.SetSelection(ii)
 
     def onNewTextSize(self, event):
         self.Fit()  # for ExpandoTextCtrl this is needed
