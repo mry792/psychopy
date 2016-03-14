@@ -215,10 +215,12 @@ def getInitVals(params):
             inits[name].valType = 'code'
         elif name in ['ori', 'sf', 'size', 'height', 'letterHeight',
                       'color', 'lineColor', 'fillColor',
+                      'backgroundLineColor', 'backgroundFillColor',
                       'phase', 'opacity',
                       'volume',  # sounds
                       'coherence', 'nDots', 'fieldSize', 'dotSize', 'dotLife',
-                      'dir', 'speed']:
+                      'dir', 'speed',
+                      'displayValue']:
             inits[name].val = "1.0"
             inits[name].valType = 'code'
         elif name in ['image', 'mask']:

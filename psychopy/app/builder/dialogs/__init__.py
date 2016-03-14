@@ -651,7 +651,8 @@ class _BaseParamsDlg(wx.Dialog):
             # self.Bind(EVT_ETC_LAYOUT_NEEDED, self.onNewTextSize,
             #    ctrls.valueCtrl)
             ctrls.valueCtrl.Bind(wx.EVT_KEY_UP, self.doValidate)
-        elif fieldName in ('color', 'fillColor', 'lineColor'):
+        elif fieldName in ('color', 'fillColor', 'lineColor',
+                           'backgroundFillColor', 'backgroundLineColor'):
             ctrls.valueCtrl.Bind(wx.EVT_RIGHT_DOWN, partial(
                 self.launchColorPicker, fieldName=fieldName))
         elif valType == 'extendedCode':

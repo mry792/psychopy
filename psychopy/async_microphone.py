@@ -11,17 +11,13 @@
 import threading
 import wave
 
-try:
-    from PyQt4 import QtCore
-except Exception:
-    from PyQt5 import QtCore
-
 import numpy
 import pyaudio
 import scipy.signal
 
 from psychopy import core, logging
 from psychopy.constants import NOT_STARTED, STARTED, FINISHED
+from psychopy.gui import qtgui
 
 pa = pyaudio.PyAudio()
 paComplete = pyaudio.paComplete
@@ -44,7 +40,7 @@ class SoundCaptureException(Exception):
     pass
 
 
-class AsyncMicrophone(QtCore.QObject):
+class AsyncMicrophone(qtgui.QObject):
     """Capture sound from the default sound input and forward it to any
     connected listeners.
 
@@ -74,7 +70,7 @@ class AsyncMicrophone(QtCore.QObject):
         self.buffer_ready = Observable()
         self.buffer_ready.register(lambda x: self.buffer_ready_signal.emit(x))
 
-    buffer_ready_signal = QtCore.pyqtSignal(numpy.ndarray)
+    buffer_ready_signal = qtgui.qtSignal(numpy.ndarray)
 
     def _capture_buffer(self, in_data, frame_count, time_info, status):
         if self.status is STARTED:
@@ -114,7 +110,7 @@ class AsyncMicrophone(QtCore.QObject):
         self.status = FINISHED
 
 
-class FFTPeak(QtCore.QObject):
+class FFTPeak(qtgui.QObject):
     """Listen to an AsyncMicrophone and do a FFT on a moving window to find the
     peak within a specified range.
     """
@@ -133,14 +129,29 @@ class FFTPeak(QtCore.QObject):
         self._max_idx = numpy.searchsorted(self._x_values, scanning_range[1])
 
         # Connect to the microphone.
-        self._mic.buffer_ready.connect(self._update)
+        self._mic.buffer_ready_signal.connect(self._update)
 
         self._f0 = None
+        self.status = NOT_STARTED
 
-        self.status = NOT_STARTED  # for Builder component
+        # Initialize the thread that will run this object.
+        self._thread = qtgui.QThread()
+        self.moveToThread(self._thread)
+
+    def start(self, duration = None):
+        self._thread.start()
+        if duration:
+            threading.Timer(duration, self.stop).start()
+        self.status = STARTED
+
+    def stop(self):
+        if self.status is STARTED:
+            self._thread.quit()
+            self._thread.wait()
+            self.status = FINISHED
 
     # for asyncronous access (as a reaction)
-    f0_ready = QtCore.pyqtSignal(float)
+    f0_ready = qtgui.qtSignal(float)
 
     # for syncronous access
     @property
@@ -151,7 +162,7 @@ class FFTPeak(QtCore.QObject):
         self._f0 = value
         self.f0_ready.emit(value)
 
-    @QtCore.pyqtSlot(numpy.ndarray)
+    @qtgui.qtSlot(numpy.ndarray)
     def _update(self, data):
         self._data.append(data)
 
@@ -183,7 +194,7 @@ class FFTPeak(QtCore.QObject):
                 self._update_f0(max_amp_freq)
 
 
-class WaveRecorder(QtCore.QObject):
+class WaveRecorder(qtgui.QObject):
     def __init__(self, async_mic):
         super(WaveRecorder, self).__init__()
 

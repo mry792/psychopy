@@ -62,6 +62,9 @@ from psychopy.visual.rect import Rect
 # stimuli derived from Polygon
 from psychopy.visual.circle import Circle
 
+# stimuli composed of several primitives
+from psychopy.visual.meter import Meter
+
 from psychopy.visual.textbox import TextBox
 """
 try:

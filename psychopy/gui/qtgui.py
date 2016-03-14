@@ -9,11 +9,15 @@
 try:
     from PyQt4 import QtGui
     QtWidgets = QtGui  # in qt4 these were all in one package
-    from PyQt4.QtCore import Qt
+    from PyQt4.QtCore import Qt, QObject, QThread
+    from PyQt4.QtCore import pyqtSignal as qtSignal
+    from PyQt4.QtCore import pyqtSlot as qtSlot
 except Exception:
     from PyQt5 import QtWidgets
     from PyQt5 import QtGui
-    from PyQt5.QtCore import Qt
+    from PyQt5.QtCore import Qt, QObject, QThread
+    from PyQt4.QtCore import pyqtSignal as qtSignal
+    from PyQt4.QtCore import pyqtSlot as qtSlot
 
 from psychopy import logging
 import numpy as np

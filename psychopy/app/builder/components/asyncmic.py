@@ -48,16 +48,18 @@ class AsyncMicrophoneComponent(BaseComponent):
         duration = str(self.params['stopVal'])  # type is code
 
         # starting condition:
-        buff.writeIndented("\n# *{}* updates\n".format(self.params['name']))
+        buff.writeIndented('\n')
+        buff.writeIndented("# *{}* updates\n".format(self.params['name']))
         self.writeStartTestCode(buff)  # writes an if statement
         if len(duration):
-            code = "{name}.open(duration = {duration})\n".format(
+            buff.writeIndented("{name}.open(duration = {duration})\n".format(
                 name = self.params['name'],
                 duration = duration
-            )
+            ))
         else:
-            code = "{name}.open()\n".format(name = self.params['name']);
-        buff.writeIndented(code)
+            buff.writeIndented("{name}.open()\n".format(
+                name = self.params['name']
+            ));
         buff.setIndentLevel(-1, relative = True)  # ends the if block
         buff.writeIndented('\n')
 
@@ -65,5 +67,6 @@ class AsyncMicrophoneComponent(BaseComponent):
         """Write code executed at the end of the routine this instance is part
         of. Cleans up the component."""
         name = self.params['name']
-        buff.writeIndented("\n# *{}* cleanup\n".format(name))
+        buff.writeIndented('\n')
+        buff.writeIndented("# *{}* cleanup\n".format(name))
         buff.writeIndented("{}.close()\n".format(name))
