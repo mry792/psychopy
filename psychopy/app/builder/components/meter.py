@@ -21,6 +21,9 @@ _localized = {
     'backgroundLineWidth': _translate('Line Width'),
     'backgroundFillColorSpace': _translate('Fill Color Space'),
     'backgroundFillColor': _translate('Fill Color'),
+    'needleColorSpace': _translate('Color Space'),
+    'needleColor': _translate('Color'),
+    'needleWidth': _translate('Width'),
 }
 
 
@@ -35,6 +38,8 @@ class MeterComponent(BaseVisualComponent):
                  backgroundLineColor='$[1,1,1]', backgroundLineColorSpace='rgb',
                  backgroundLineWidth=1,
                  backgroundFillColor='$[1,1,1]', backgroundFillColorSpace='rgb',
+                 needleColor='$[1,1,1]', needleColorSpace='rgb',
+                 needleWidth=1,
                  **kwargs):
         super(MeterComponent, self).__init__(
             exp, parentName, name=name, **kwargs)
@@ -107,6 +112,31 @@ class MeterComponent(BaseVisualComponent):
                             'bring up a color-picker (rgb only)'),
             label=_localized['backgroundFillColor'], categ='Background')
 
+        # needle params
+        self.params['needleColorSpace'] = Param(
+            needleColorSpace, valType='str',
+            allowedVals=['rgb', 'dkl', 'lms', 'hsv'],
+            updates='constant',
+            hint=_translate('Choice of color space for the needle\'s line '
+                            'color (rgb, dkl, lms, hsv)'),
+            label=_localized['needleColorSpace'], categ='Needle')
+
+        self.params['needleColor'] = Param(
+            needleColor, valType='str', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat', 'set every frame'],
+            hint=_translate('Line color of the needle; Right-click to '
+                            'bring up a color-picker (rgb only)'),
+            label=_localized['needleColor'], categ='Needle')
+
+        self.params['needleWidth'] = Param(
+            needleWidth, valType='code', allowedTypes=[],
+            updates='constant',
+            allowedUpdates=['constant', 'set every repeat', 'set every frame'],
+            hint=_translate('Width of the needle\'s outer line (always in '
+                            'pixels - this does NOT use \'units\')'),
+            label=_localized['needleWidth'], categ='Needle')
+
         del self.params['color']
         del self.params['colorSpace']
 
@@ -132,6 +162,11 @@ class MeterComponent(BaseVisualComponent):
                 "        'lineWidth': {backgroundLineWidth},\n"
                 "        'fillColor': {backgroundFillColor},\n"
                 "        'fillColorSpace': {backgroundFillColorSpace},\n"
+                "    }},\n"
+                "    needleKwargs={{\n"
+                "        'lineColor': {needleColor},\n"
+                "        'lineColorSpace': {needleColorSpace},\n"
+                "        'lineWidth': {needleWidth},\n"
                 "    }}\n"
                 ")\n")
 

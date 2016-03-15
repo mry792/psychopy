@@ -216,6 +216,7 @@ def getInitVals(params):
         elif name in ['ori', 'sf', 'size', 'height', 'letterHeight',
                       'color', 'lineColor', 'fillColor',
                       'backgroundLineColor', 'backgroundFillColor',
+                      'needleColor',
                       'phase', 'opacity',
                       'volume',  # sounds
                       'coherence', 'nDots', 'fieldSize', 'dotSize', 'dotLife',
