@@ -8,6 +8,7 @@
 # Author: M. Emery Goss, March 2016
 
 
+import itertools
 import threading
 import wave
 
@@ -116,7 +117,7 @@ class FFTPeak(qtgui.QObject):
     """
 
     def __init__(self, async_mic, scanning_range, buffer_count=10):
-        super().__init__()
+        super(FFTPeak, self).__init__()
 
         self._mic = async_mic
         self._data = []
@@ -127,6 +128,8 @@ class FFTPeak(qtgui.QObject):
             self._buffer_count * self._mic.buffer_size, self._mic.sample_freq)
         self._min_idx = numpy.searchsorted(self._x_values, scanning_range[0])
         self._max_idx = numpy.searchsorted(self._x_values, scanning_range[1])
+        logging.info("fft_peak: min_idx = {}".format(self._min_idx))
+        logging.info("fft_peak: max_idx = {}".format(self._max_idx))
 
         # Connect to the microphone.
         self._mic.buffer_ready_signal.connect(self._update)
@@ -139,6 +142,7 @@ class FFTPeak(qtgui.QObject):
         self.moveToThread(self._thread)
 
     def start(self, duration = None):
+        # logging.log("fft_peak: starting", level = logging.INFO)
         self._thread.start()
         if duration:
             threading.Timer(duration, self.stop).start()
@@ -158,12 +162,19 @@ class FFTPeak(qtgui.QObject):
     def f0(self):
         return self._f0
 
+    @property
+    def scanning_range(self):
+        return self._scanning_range
+
     def _update_f0(self, value):
+        # logging.log("fft_peak: _update_f0", level = logging.INFO)
+        # logging.log("fft_peak: f0 = {}".format(value), level=logging.INFO)
         self._f0 = value
         self.f0_ready.emit(value)
 
     @qtgui.qtSlot(numpy.ndarray)
     def _update(self, data):
+        # logging.log("fft_peak: _update(data)", level = logging.INFO)
         self._data.append(data)
 
         while len(self._data) > self._buffer_count:
@@ -181,6 +192,7 @@ class FFTPeak(qtgui.QObject):
             freq_spec = numpy.abs(freq_spec)
 
             peaks = scipy.signal.argrelmax(freq_spec[self._min_idx:self._max_idx])[0]
+            # logging.log("fft_peak.update: peaks = {}".format(peaks), level = logging.INFO)
 
             if len(peaks) is 0:
                 pass
@@ -190,7 +202,7 @@ class FFTPeak(qtgui.QObject):
                 idx_of_max = max(peaks, key = lambda x: freq_spec[x])
                 # threashold = 0.5 * freq_spec[idx_of_max]
                 # idx_of_max = next(idx for idx in peaks if freq_spec[idx] > threashold)
-                max_amp_freq = self.x_values[idx_of_max]
+                max_amp_freq = self._x_values[idx_of_max]
                 self._update_f0(max_amp_freq)
 
 

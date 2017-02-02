@@ -140,7 +140,7 @@ class MeterComponent(BaseVisualComponent):
         del self.params['color']
         del self.params['colorSpace']
 
-    def writeInitCode(self, buff):
+    def writeRoutineStartCode(self, buff):
         # do we need units code?
         if self.params['units'].val == 'from exp settings':
             unitsStr = ''
